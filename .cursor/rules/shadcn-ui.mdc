@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+# shadcn/ui
+
+This project uses **shadcn/ui** for all UI elements. Do not introduce alternate component libraries or one-off styled primitives when a shadcn component exists.
+
+## Setup
+
+shadcn is configured in [components.json](mdc:components.json). UI components live under `@/components/ui` (see [src/components/ui](mdc:src/components/ui)).
+
+## Theme
+
+- **Base color:** Neutral (`tailwind.baseColor`: `neutral` in `components.json`).
+- CSS variables live in [src/app/globals.css](mdc:src/app/globals.css).
+- Prefer semantic utilities (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `text-muted-foreground`) instead of raw palette classes (`zinc-*`, `gray-*`, etc.).
+
+If shadcn is **not** initialized (no `components.json`), run:
+
+```bash
+npx shadcn@latest init
+```
+
+## Adding components
+
+Before building UI, check whether the component already exists under `src/components/ui/`. If it is missing, install it with the CLI (component name is kebab-case):
+
+```bash
+npx shadcn@latest add button
+```
+
+Replace `button` with the needed component (e.g. `card`, `input`, `dialog`).
+
+## Usage
+
+- Import from `@/components/ui/<component>` (e.g. `@/components/ui/button`).
+- Prefer shadcn variants and composition patterns over custom duplicate components.
+- Use [src/lib/utils.ts](mdc:src/lib/utils.ts) (`cn`) for class merging when extending shadcn components.

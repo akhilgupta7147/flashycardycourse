@@ -1,0 +1,71 @@
+---
+description: Reads happen in Server Components, writes happen in Server Actions, all input validated with zod and typed (never FormData)
+alwaysApply: true
+---
+
+# Data fetching, mutations & validation
+
+## Rules
+
+- **Reads:** retrieve data only in **Server Components** (async components calling Drizzle directly or via a server-only helper). Never fetch data in Client Components (`useEffect`, SWR, React Query, `fetch` to your own API) or Route Handlers just to read data.
+- **Writes:** every insert, update, and delete **must** be a **Server Action** (`"use server"`). No mutations in Server Components, Route Handlers, or Client Components.
+- **Location:** put actions in a colocated `actions.ts` next to the route that uses them (e.g. `src/app/dashboard/actions.ts`) with `"use server"` at the top of the file.
+- **Validation:** all validation uses **zod**. Never hand-roll validation.
+- **Action input:** every Server Action takes a **typed object**, validated with a zod schema via `.parse()` / `.safeParse()` before anything else. Derive the TS type from the schema with `z.infer`.
+- **Never use `FormData`** as a parameter type. Client components call the action with a plain typed object.
+- Auth and ownership rules still apply (see `clerk-auth-data-isolation.mdc`): get `userId` from `auth()`, never from the input.
+
+## Example
+
+```ts
+// src/app/dashboard/actions.ts
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { db } from "@/db";
+import { decksTable } from "@/db/schema";
+
+const renameDeckSchema = z.object({
+ deckId: z.number().int().positive(),
+ name: z.string().trim().min(1).max(100),
+});
+
+type RenameDeckInput = z.infer<typeof renameDeckSchema>;
+
+// ✅ GOOD: typed object, validated with zod, userId from auth()
+export async function renameDeck(input: RenameDeckInput) {
+ const { userId } = await auth();
+ if (!userId) throw new Error("Unauthorized");
+
+ const { deckId, name } = renameDeckSchema.parse(input);
+
+ await db
+ .update(decksTable)
+ .set({ name })
+ .where(and(eq(decksTable.id, deckId), eq(decksTable.userId, userId)));
+
+ revalidatePath("/dashboard");
+}
+
+// ❌ BAD: FormData as the type, no zod validation
+export async function renameDeckBad(formData: FormData) {
+ await db.update(decksTable).set({ name: formData.get("name") as string });
+}
+```
+
+```tsx
+// ✅ GOOD: read in a Server Component
+export default async function DashboardPage() {
+ const { userId } = await auth();
+ if (!userId) redirect("/sign-in");
+ const decks = await db.select().from(decksTable).where(eq(decksTable.userId, userId));
+ return <DeckList decks={decks} />;
+}
+
+// ❌ BAD: reading data in a Client Component
+"use client";
+useEffect(() => { fetch("/api/decks").then(/* ... */); }, []);
+```

@@ -1,0 +1,42 @@
+---
+description: All database access must go through the Drizzle schema and query builder
+alwaysApply: true
+---
+# Database access (Drizzle ORM)
+
+All database interactions **must** use the Drizzle schema and Drizzle queries. Never write raw SQL strings or use another client/ORM.
+
+## Where things live
+
+- Schema (tables, indexes, relations, inferred types): [src/db/schema.ts](mdc:src/db/schema.ts)
+- Shared `db` client: [src/db/index.ts](mdc:src/db/index.ts) — import as `import { db } from "@/db"`
+- Migration config: [drizzle.config.ts](mdc:drizzle.config.ts)
+
+## Rules
+
+- Define or change tables **only** in `src/db/schema.ts`, then generate/apply migrations with `npx drizzle-kit generate` / `npx drizzle-kit migrate` (or `push` for local prototyping).
+- Import tables from `@/db/schema` (e.g. `decksTable`, `cardsTable`) and query with the Drizzle query builder: `db.select()`, `db.insert()`, `db.update()`, `db.delete()`.
+- Use Drizzle operators (`eq`, `and`, `desc`, ...) from `drizzle-orm` for conditions.
+- Use the inferred types (`Deck`, `NewDeck`, `Card`, `NewCard`) instead of hand-written duplicates.
+- Never create a second database client or connection; always reuse `db`.
+- Never use raw SQL (`neon` `sql` template, `db.execute(sql\`...\`)`) for things the query builder can do. The `sql` helper from `drizzle-orm` is acceptable only for small expressions inside a Drizzle query (e.g. `count(*)`).
+- Scope every deck/card query by the authenticated Clerk `userId` (cards via their parent deck).
+
+## Example
+
+```ts
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { decksTable, type NewDeck } from "@/db/schema";
+
+// ✅ GOOD
+const decks = await db
+  .select()
+  .from(decksTable)
+  .where(eq(decksTable.userId, userId));
+
+await db.insert(decksTable).values({ userId, name } satisfies NewDeck);
+
+// ❌ BAD
+await sql`SELECT * FROM decks WHERE user_id = ${userId}`;
+```

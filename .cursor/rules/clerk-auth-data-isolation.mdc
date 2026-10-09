@@ -1,0 +1,50 @@
+---
+description: Clerk handles all auth; users must only ever access their own data
+alwaysApply: true
+---
+
+# Authentication & data isolation (Clerk)
+
+All authentication is handled by **Clerk** (`@clerk/nextjs`). Never build custom auth, sessions, password handling, or a users table. The Clerk `userId` is the only identity.
+
+**Critical:** a user must only be able to read, create, update, or delete data that belongs to them. Never return or mutate another user's data.
+
+## Rules
+
+- Get the user server-side with `const { userId } = await auth()` from `@clerk/nextjs/server`. Never trust a `userId` from request bodies, query params, route params, or form fields.
+- Check `userId` at the start of every Server Component, Server Action, and Route Handler that touches user data. If it is missing, `redirect("/sign-in")` (pages) or return/throw an unauthorized error (actions/API).
+- Route protection in [src/proxy.ts](mdc:src/proxy.ts) is only a first line of defence. Add new private routes to `isProtectedRoute`, but always re-check `userId` in the data layer too.
+- Scope **every** query and mutation by `userId`:
+  - Decks: `eq(decksTable.userId, userId)`.
+  - Cards: verify ownership through the parent deck (join `decksTable` or first confirm the deck is owned by `userId`). `cardsTable` has no `userId` column, so never query it by `id` or `deckId` alone.
+- For update/delete, put the ownership condition in the same `where` (use `and(...)`) rather than check-then-write.
+- If a record is not found *or* not owned by the user, respond identically (e.g. `notFound()`), so existence of others' data is not leaked.
+- When inserting a deck, set `userId` from `auth()`, never from client input.
+- Validate all client input (e.g. with zod) in Server Actions and Route Handlers.
+
+## Example
+
+```ts
+import { auth } from "@clerk/nextjs/server";
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { cardsTable, decksTable } from "@/db/schema";
+
+export async function getCardsForDeck(deckId: number) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  // ✅ GOOD: ownership enforced via the parent deck
+  return db
+    .select({ card: cardsTable })
+    .from(cardsTable)
+    .innerJoin(decksTable, eq(cardsTable.deckId, decksTable.id))
+    .where(and(eq(cardsTable.deckId, deckId), eq(decksTable.userId, userId)));
+}
+
+// ❌ BAD: any logged-in user can read any deck's cards
+await db.select().from(cardsTable).where(eq(cardsTable.deckId, deckId));
+
+// ❌ BAD: userId taken from client input
+await db.delete(decksTable).where(eq(decksTable.userId, formData.get("userId")));
+```
