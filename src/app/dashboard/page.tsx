@@ -80,9 +80,9 @@ export default async function DashboardPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {decks.map((deck) => (
-                <Card key={deck.id} className="h-full">
+                <Card key={deck.id} className="h-72">
                   <CardHeader>
-                    <CardTitle>
+                    <CardTitle className="line-clamp-1">
                       <Link
                         href={`/decks/${deck.id}`}
                         className="hover:underline"
@@ -90,11 +90,12 @@ export default async function DashboardPage() {
                         {deck.name}
                       </Link>
                     </CardTitle>
-                    {deck.description ? (
-                      <CardDescription>{deck.description}</CardDescription>
-                    ) : null}
+                    {/* Always rendered with a reserved 2-line height so every deck card lays out identically. */}
+                    <CardDescription className="line-clamp-2 min-h-10">
+                      {deck.description}
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent className="flex flex-col gap-4">
+                  <CardContent className="flex flex-1 flex-col gap-4">
                     <Progress
                       value={
                         deck.totalCards === 0
