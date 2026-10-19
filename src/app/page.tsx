@@ -1,7 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { BookOpen, Brain, Crown, Layers, Sparkles } from "lucide-react";
+import { Brain, Sparkles } from "lucide-react";
 import { AuthNavButtons } from "@/components/auth-nav-buttons";
+import { PlanCards } from "@/components/plan-cards";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -47,40 +48,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="grid w-full gap-4 text-left sm:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <Badge variant="outline">
-                <BookOpen />
-                Free
-              </Badge>
-              <CardTitle className="mt-2 flex items-center gap-2">
-                <Layers className="size-5 text-primary" />
-                Up to 3 decks
-              </CardTitle>
-              <CardDescription>
-                Log in to create up to 3 decks for free and start learning
-                right away.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-          <Card>
-            <CardHeader>
-              <Badge>
-                <Crown />
-                Pro
-              </Badge>
-              <CardTitle className="mt-2 flex items-center gap-2">
-                <Sparkles className="size-5 text-primary" />
-                Unlimited decks
-              </CardTitle>
-              <CardDescription>
-                Get on a Pro plan to create as many decks as you want, plus
-                AI-generated flashcards.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </section>
+        <PlanCards />
       </div>
     </main>
   );
