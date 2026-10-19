@@ -26,8 +26,8 @@ export default async function Home() {
             </Badge>
             <CardTitle className="mt-2">Welcome!</CardTitle>
             <CardDescription>
-              This is a fun learning app created by Akhil Gupta while learning
-              Vibecoding with Cursor.ai.
+              This is a fun learning app. Log in to start building your own
+              flashcard decks.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -50,6 +50,9 @@ export default async function Home() {
 
         <PlanCards />
       </div>
+      <footer className="mt-auto pt-16 text-sm text-muted-foreground">
+        Created by Akhil Gupta while learning Vibecoding with Cursor.ai.
+      </footer>
     </main>
   );
 }
