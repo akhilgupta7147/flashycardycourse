@@ -1,19 +1,24 @@
 ---
 alwaysApply: true
 ---
-# shadcn/ui
+# shadcn/ui — the ONLY UI source
 
-This project uses **shadcn/ui** for all UI elements. Do not introduce alternate component libraries or one-off styled primitives when a shadcn component exists.
+**ONLY shadcn/ui components may be used for the UI in this project. ABSOLUTELY NO custom UI may be created.**
+
+This is a hard rule with no exceptions. Every visible element (buttons, inputs, forms, cards, dialogs, menus, tables, badges, alerts, tabs, etc.) must be a shadcn/ui component imported from `@/components/ui`.
+
+## Absolute prohibitions
+
+- **NO custom UI components.** Do not create bespoke buttons, cards, modals, inputs, dropdowns, tooltips, or any other visual primitive, even as a "small wrapper" or "just this once".
+- **NO hand-styled HTML elements as UI.** Do not use raw `<button>`, `<input>`, `<select>`, `<textarea>`, `<dialog>`, etc. styled with Tailwind classes in place of a shadcn component.
+- **NO alternate component libraries** (MUI, Chakra, Ant Design, Mantine, Radix Themes, Headless UI, daisyUI, etc.). Use of Radix primitives is allowed only indirectly through shadcn components.
+- **NO duplicating or re-implementing** a shadcn component under a different name.
+- If shadcn does not have a component for a need, **compose existing shadcn components together** (e.g. `Card` + `Button` + `Badge`). Layout-only wrappers (`div`, `section`, `main`) using Tailwind utilities for spacing/flex/grid are fine; they must not introduce their own visual styling for interactive or content elements.
+- Do not edit the generated files in `src/components/ui` to invent new visuals. Use component `variant`/`size` props and `className` via `cn` for minor layout adjustments only.
 
 ## Setup
 
 shadcn is configured in [components.json](mdc:components.json). UI components live under `@/components/ui` (see [src/components/ui](mdc:src/components/ui)).
-
-## Theme
-
-- **Base color:** Neutral (`tailwind.baseColor`: `neutral` in `components.json`).
-- CSS variables live in [src/app/globals.css](mdc:src/app/globals.css).
-- Prefer semantic utilities (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `text-muted-foreground`) instead of raw palette classes (`zinc-*`, `gray-*`, etc.).
 
 If shadcn is **not** initialized (no `components.json`), run:
 
@@ -23,7 +28,7 @@ npx shadcn@latest init
 
 ## Adding components
 
-Before building UI, check whether the component already exists under `src/components/ui/`. If it is missing, install it with the CLI (component name is kebab-case):
+Before building any UI, check whether the component already exists under `src/components/ui/`. If it is missing, install it with the CLI (component name is kebab-case) — never hand-write a substitute:
 
 ```bash
 npx shadcn@latest add button
@@ -34,5 +39,46 @@ Replace `button` with the needed component (e.g. `card`, `input`, `dialog`).
 ## Usage
 
 - Import from `@/components/ui/<component>` (e.g. `@/components/ui/button`).
-- Prefer shadcn variants and composition patterns over custom duplicate components.
+- Prefer shadcn variants and composition patterns over any custom markup.
 - Use [src/lib/utils.ts](mdc:src/lib/utils.ts) (`cn`) for class merging when extending shadcn components.
+
+## Theme
+
+- **Base color:** Neutral (`tailwind.baseColor`: `neutral` in `components.json`).
+- CSS variables live in [src/app/globals.css](mdc:src/app/globals.css).
+- Use semantic utilities (`bg-background`, `text-foreground`, `bg-primary`, `border-border`, `text-muted-foreground`) instead of raw palette classes (`zinc-*`, `gray-*`, etc.).
+
+## Clerk authentication UI
+
+Clerk sign in and sign up **must** be launched in a **modal**, triggered by **shadcn `Button`** components.
+
+- Every sign in and sign up trigger **must** be a shadcn `Button` (`@/components/ui/button`) wrapped by Clerk's `SignInButton` / `SignUpButton`.
+- Always set `mode="modal"` on `SignInButton` and `SignUpButton`. Never use redirect mode (the default) and never link users to a separate sign in / sign up page as the primary flow.
+- Pass the shadcn `Button` as the child of the Clerk component. Do **not** let Clerk render its own default unstyled button, and do not use a raw `<button>` or `<a>`.
+- Use shadcn variants to distinguish the actions (e.g. `variant="ghost"` or `"outline"` for sign in, default `variant` for sign up).
+
+```tsx
+// ✅ GOOD: shadcn Button inside Clerk button, launched as a modal
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+
+<SignInButton mode="modal">
+  <Button variant="outline">Sign in</Button>
+</SignInButton>
+<SignUpButton mode="modal">
+  <Button>Sign up</Button>
+</SignUpButton>
+
+// ❌ BAD: redirect mode (no modal)
+<SignInButton>
+  <Button>Sign in</Button>
+</SignInButton>
+
+// ❌ BAD: custom/raw button instead of a shadcn Button
+<SignUpButton mode="modal">
+  <button className="rounded bg-blue-600 px-4 py-2 text-white">Sign up</button>
+</SignUpButton>
+
+// ❌ BAD: Clerk's default button with no shadcn Button
+<SignInButton mode="modal" />
+```

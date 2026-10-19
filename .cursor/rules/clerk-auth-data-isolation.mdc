@@ -1,8 +1,6 @@
 ---
-description: Clerk handles all auth; users must only ever access their own data
 alwaysApply: true
 ---
-
 # Authentication & data isolation (Clerk)
 
 All authentication is handled by **Clerk** (`@clerk/nextjs`). Never build custom auth, sessions, password handling, or a users table. The Clerk `userId` is the only identity.

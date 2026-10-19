@@ -1,4 +1,5 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import {
   Card,
   CardDescription,
@@ -7,6 +8,9 @@ import {
 } from "@/components/ui/card";
 
 export default async function DashboardPage() {
+  const { userId } = await auth();
+  if (!userId) redirect("/sign-in");
+
   const user = await currentUser();
 
   return (
