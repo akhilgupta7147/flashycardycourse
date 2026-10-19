@@ -1,36 +1,151 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FlashyCardy 🧠
 
-## Getting Started
+Your personal flashcard platform: build decks, flip cards and remember more.
 
-First, run the development server:
+**Live demo:** [flashycardycourse-smoky.vercel.app](https://flashycardycourse-smoky.vercel.app)
+
+> A learning project built by Akhil Gupta while learning vibe coding with [Cursor](https://cursor.com).
+
+<!-- Add screenshots here, e.g. ![Dashboard](docs/dashboard.png) -->
+
+## Features
+
+- **Authentication** with Clerk (sign in / sign up in a modal)
+- **Decks and cards:** create, rename and delete decks; add, edit and delete cards (up to 20 cards per deck)
+- **Study mode:** flip through cards and mark them as learned to track progress
+- **AI flashcard generation** from a deck's title and description (Pro plan)
+- **Subscription plans** via Clerk Billing:
+  - Free: up to 3 decks
+  - Pro: unlimited decks and AI generation
+- **Shareable learning certificate** once you finish studying a deck
+- **Per-user data isolation:** every query is scoped to the signed-in user, so you can only see your own decks and cards
+
+## Tech stack
+
+| Area | Technology |
+| --- | --- |
+| Framework | [Next.js](https://nextjs.org) 16 (App Router), React 19, TypeScript |
+| UI | [shadcn/ui](https://ui.shadcn.com), Tailwind CSS 4 |
+| Auth & billing | [Clerk](https://clerk.com) |
+| Database | [Neon](https://neon.tech) Postgres + [Drizzle ORM](https://orm.drizzle.team) |
+| AI | [Vercel AI SDK](https://ai-sdk.dev) + OpenAI |
+| Validation | [Zod](https://zod.dev) |
+| Hosting | [Vercel](https://vercel.com) |
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 20 or newer and npm
+- A [Clerk](https://clerk.com) application with Billing enabled
+- A [Neon](https://neon.tech) Postgres database
+- An [OpenAI](https://platform.openai.com) API key
+
+### Installation
+
+```bash
+git clone https://github.com/akhilguptapm/flashycardycourse.git
+cd flashycardycourse
+npm install
+```
+
+### Environment variables
+
+Copy the example file and fill in your own values:
+
+```bash
+cp .env.example .env.local
+```
+
+| Variable | Description |
+| --- | --- |
+| `DATABASE_URL` | Neon Postgres connection string |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk publishable key (safe for the browser) |
+| `CLERK_SECRET_KEY` | Clerk secret key (server only) |
+| `OPENAI_API_KEY` | OpenAI API key (server only) |
+
+> **Note:** the Drizzle CLI (`drizzle.config.ts`) reads `DATABASE_URL` from a file named `.env`, while Next.js reads `.env.local`. Put `DATABASE_URL` in both, or run `cp .env.local .env`.
+>
+> Never commit real keys. `.env*` files are git-ignored (only `.env.example` is tracked).
+
+### Clerk Billing setup
+
+In the Clerk Dashboard, under Billing, create these (the slugs must match exactly):
+
+| Type | Slug |
+| --- | --- |
+| Plan | `free_user` |
+| Plan | `pro` |
+| Feature | `3_deck_limit` (free) |
+| Feature | `unlimited_decks` (pro) |
+| Feature | `ai_flashcard_generation` (pro) |
+
+### Database
+
+Push the schema to your Neon database:
+
+```bash
+npm run db:push
+```
+
+### Run the app
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the development server |
+| `npm run build` | Create a production build |
+| `npm start` | Serve the production build |
+| `npm run lint` | Run ESLint |
+| `npm run db:generate` | Generate Drizzle migrations |
+| `npm run db:migrate` | Apply migrations |
+| `npm run db:push` | Push the schema directly (good for prototyping) |
+| `npm run db:studio` | Browse the database with Drizzle Studio |
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
+```text
+src/
+  app/                     # Routes
+    dashboard/             # Deck list
+    decks/[deckId]/        # Deck detail, cards and AI generation
+    decks/[deckId]/study/  # Study mode
+    pricing/               # Clerk pricing table
+    certificate/[token]/   # Public shareable certificate
+  components/              # shadcn/ui and shared components
+  db/
+    schema.ts              # Drizzle schema (decks, cards)
+    queries/               # All database reads and writes live here
+  lib/                     # AI config, billing, limits, helpers
+  proxy.ts                 # Clerk route protection
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Architecture notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- All database access goes through helpers in `src/db/queries/`; pages and actions never touch the database directly.
+- Reads happen in Server Components; writes are Server Actions validated with Zod.
+- The user ID always comes from Clerk's `auth()` on the server, never from client input.
+- Plan limits and the AI feature are enforced on the server, not just hidden in the UI.
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The app is deployed on [Vercel](https://vercel.com). To deploy your own copy:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Import the repository into Vercel.
+2. Add the environment variables listed above in the project settings.
+3. Add your Vercel domain to your Clerk application's allowed origins.
+
+## License
+
+Released under the [MIT License](LICENSE).
+
+## Author
+
+Created by [Akhil Gupta](https://github.com/akhilguptapm).
