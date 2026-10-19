@@ -148,8 +148,8 @@ Copyright (c) 2026 Akhil Gupta. All rights reserved.
 
 This repository is public so you can read and evaluate the code, but it is **not open source**. Using, copying, modifying or distributing it requires a paid license. See [LICENSE](LICENSE) for details.
 
-Interested in a license? Get in touch via my [GitHub profile](https://github.com/akhilguptapm).
+Interested in a license? Get in touch via [LinkedIn](https://www.linkedin.com/in/akhilgupta-pm).
 
 ## Author
 
-Created by [Akhil Gupta](https://github.com/akhilguptapm).
+Created by [Akhil Gupta](https://www.linkedin.com/in/akhilgupta-pm).
