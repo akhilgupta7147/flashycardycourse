@@ -144,7 +144,11 @@ The app is deployed on [Vercel](https://vercel.com). To deploy your own copy:
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Copyright (c) 2026 Akhil Gupta. All rights reserved.
+
+This repository is public so you can read and evaluate the code, but it is **not open source**. Using, copying, modifying or distributing it requires a paid license. See [LICENSE](LICENSE) for details.
+
+Interested in a license? Get in touch via my [GitHub profile](https://github.com/akhilguptapm).
 
 ## Author
 
