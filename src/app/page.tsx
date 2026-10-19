@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { AuthNavButtons } from "@/components/auth-nav-buttons";
 import {
   Card,
+  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -22,6 +23,12 @@ export default async function Home() {
             Vibecoding with Cursor.ai.
           </CardDescription>
         </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            Log in to create up to 3 decks for free, or get on a Pro plan to
+            create as many decks as you want.
+          </p>
+        </CardContent>
       </Card>
       <h1 className="text-4xl font-semibold tracking-tight text-foreground">
         FlashyCardy
