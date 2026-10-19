@@ -39,14 +39,14 @@ export default async function CertificatePage({ params }: Props) {
   if (!certificate) notFound();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-6 px-4 py-10">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-4 px-4 py-6 sm:gap-6 sm:py-10">
       <Card>
         <CardHeader>
           <Badge variant="secondary">
             <AwardIcon />
             Certificate of learning
           </Badge>
-          <CardTitle className="text-2xl">{certificate.deckName}</CardTitle>
+          <CardTitle className="text-xl wrap-anywhere sm:text-2xl">{certificate.deckName}</CardTitle>
           <CardDescription>
             This certifies that {certificate.learnerName} learned all{" "}
             {certificate.cardCount}{" "}

@@ -59,7 +59,7 @@ export function GenerateCardsButton({
   );
 
   return (
-    <div className="flex flex-col items-end gap-2">
+    <div className="flex flex-col items-start gap-2 sm:items-end">
       {disabledReason ? (
         <Tooltip>
           {/* Disabled buttons don't receive hover, so the span is the trigger. */}

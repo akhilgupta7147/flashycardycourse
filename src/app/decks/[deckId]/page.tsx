@@ -57,7 +57,7 @@ export default async function DeckPage({
     cards.length === 0 ? 0 : Math.round((learnedCount / cards.length) * 100);
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-10">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-4 px-4 py-6 sm:gap-6 sm:py-10">
       <div>
         <Button
           variant="ghost"
@@ -70,11 +70,14 @@ export default async function DeckPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>{deck.name}</CardTitle>
+          <CardTitle className="wrap-anywhere">{deck.name}</CardTitle>
           {deck.description ? (
-            <CardDescription>{deck.description}</CardDescription>
+            <CardDescription className="wrap-anywhere">
+              {deck.description}
+            </CardDescription>
           ) : null}
-          <CardAction className="flex gap-2">
+          {/* Stacks under the title on phones, sits beside it from sm up. */}
+          <CardAction className="row-span-1 row-start-auto col-start-1 mt-2 flex flex-wrap gap-2 justify-self-start sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:mt-0 sm:justify-self-end">
             <EditDeckDialog
               deckId={deck.id}
               name={deck.name}
@@ -84,7 +87,7 @@ export default async function DeckPage({
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">
               {cards.length} {cards.length === 1 ? "card" : "cards"}
             </Badge>
@@ -124,7 +127,8 @@ export default async function DeckPage({
       <Card>
         <CardHeader>
           <CardTitle>Cards</CardTitle>
-          <CardAction className="flex items-start gap-2">
+          {/* Stacks under the title on phones, sits beside it from sm up. */}
+          <CardAction className="row-span-1 row-start-auto col-start-1 mt-2 flex flex-wrap items-start gap-2 justify-self-start sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:mt-0 sm:justify-self-end">
             <Show
               when={{ feature: "ai_flashcard_generation" }}
               fallback={<UpgradeGenerateCardsButton />}
@@ -162,7 +166,7 @@ export default async function DeckPage({
                 <Card key={card.id}>
                   <CardHeader>
                     <CardDescription>Front</CardDescription>
-                    <CardTitle>{card.front}</CardTitle>
+                    <CardTitle className="wrap-anywhere">{card.front}</CardTitle>
                     <CardAction className="flex gap-2">
                       <CardDialog
                         mode="edit"
@@ -179,7 +183,7 @@ export default async function DeckPage({
                   <CardContent className="flex flex-col gap-2">
                     <div className="flex flex-col gap-1">
                       <CardDescription>Back</CardDescription>
-                      <p>{card.back}</p>
+                      <p className="wrap-anywhere">{card.back}</p>
                     </div>
                     {card.learned ? (
                       <Badge variant="secondary" className="self-start">

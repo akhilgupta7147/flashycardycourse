@@ -121,7 +121,7 @@ export function StudySession({
     <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>{deckName}</CardTitle>
+          <CardTitle className="wrap-anywhere">{deckName}</CardTitle>
           <CardDescription>Study session</CardDescription>
         </CardHeader>
         <CardContent>
@@ -139,7 +139,7 @@ export function StudySession({
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <CardHeader>
               <CardDescription>Question</CardDescription>
-              <CardTitle>{current.front}</CardTitle>
+              <CardTitle className="wrap-anywhere">{current.front}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="flex flex-col gap-2">
@@ -184,7 +184,7 @@ export function StudySession({
                 <p className="text-sm text-destructive">{error}</p>
               ) : null}
             </CardContent>
-            <CardFooter className="gap-2">
+            <CardFooter className="flex-wrap gap-2">
               {isFinished ? (
                 <>
                   <Button
@@ -239,7 +239,7 @@ export function StudySession({
               {error ? (
                 <p className="text-sm text-destructive">{error}</p>
               ) : null}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {missed.length > 0 ? (
                   <Button onClick={handleRetryMissed} disabled={isPending}>
                     Retry missed cards
