@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   pgTable,
@@ -27,6 +28,11 @@ export const decksTable = pgTable(
     userId: varchar({ length: 255 }).notNull(),
     name: varchar({ length: 255 }).notNull(),
     description: text(),
+    // Snapshot of the title/description the AI cards were last generated from.
+    // AI generation is only available when the current values differ from it
+    // (or when it is null, i.e. nothing was generated yet).
+    aiGeneratedName: varchar({ length: 255 }),
+    aiGeneratedDescription: text(),
     ...timestamps,
   },
   (table) => [index("decks_user_id_idx").on(table.userId)],
@@ -46,6 +52,8 @@ export const cardsTable = pgTable(
       .references(() => decksTable.id, { onDelete: "cascade" }),
     front: text().notNull(),
     back: text().notNull(),
+    // Study progress: true once the user has marked the card as learned.
+    learned: boolean().notNull().default(false),
     ...timestamps,
   },
   (table) => [index("cards_deck_id_idx").on(table.deckId)],

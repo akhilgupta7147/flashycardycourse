@@ -10,7 +10,7 @@ All authentication is handled by **Clerk** (`@clerk/nextjs`). Never build custom
 ## Rules
 
 - Get the user server-side with `const { userId } = await auth()` from `@clerk/nextjs/server`. Never trust a `userId` from request bodies, query params, route params, or form fields.
-- Check `userId` at the start of every Server Component, Server Action, and Route Handler that touches user data. If it is missing, `redirect("/sign-in")` (pages) or return/throw an unauthorized error (actions/API).
+- Check `userId` at the start of every Server Component, Server Action, and Route Handler that touches user data. If it is missing, `redirect("/")` to the homepage (pages) or return/throw an unauthorized error (actions/API). This app has **no sign-in page**; the homepage is where the sign in / sign up modal buttons live, so unauthenticated users trying to reach a protected page are always sent there.
 - Route protection in [src/proxy.ts](mdc:src/proxy.ts) is only a first line of defence. Add new private routes to `isProtectedRoute`, but always re-check `userId` in the data layer too.
 - Scope **every** query and mutation by `userId`:
   - Decks: `eq(decksTable.userId, userId)`.

@@ -1,5 +1,5 @@
 ---
-description: Reads happen in Server Components, writes happen in Server Actions, all input validated with zod and typed (never FormData)
+description: All DB reads/writes go through helper functions in src/db/queries; reads happen in Server Components, writes in Server Actions, all input validated with zod and typed (never FormData)
 alwaysApply: true
 ---
 
@@ -7,26 +7,55 @@ alwaysApply: true
 
 ## Rules
 
-- **Reads:** retrieve data only in **Server Components** (async components calling Drizzle directly or via a server-only helper). Never fetch data in Client Components (`useEffect`, SWR, React Query, `fetch` to your own API) or Route Handlers just to read data.
-- **Writes:** every insert, update, and delete **must** be a **Server Action** (`"use server"`). No mutations in Server Components, Route Handlers, or Client Components.
-- **Location:** put actions in a colocated `actions.ts` next to the route that uses them (e.g. `src/app/dashboard/actions.ts`) with `"use server"` at the top of the file.
-- **Validation:** all validation uses **zod**. Never hand-roll validation.
+- **Query helpers only:** ALL database reads and writes **must** go through helper functions in the `src/db/queries/` directory (e.g. `src/db/queries/decks.ts`, `src/db/queries/cards.ts`). Server Components and Server Actions **never** call `db.select()`, `db.insert()`, `db.update()`, or `db.delete()` directly, and never import `db` or tables from `@/db/schema` for querying. They import and call a query helper instead.
+- **Query helper conventions:**
+  - One file per entity/domain in `src/db/queries/`, named after it (`decks.ts`, `cards.ts`). Export small, single-purpose, named async functions (`getDecksForUser`, `getDeckById`, `createDeck`, `renameDeck`, `deleteDeck`).
+  - Each helper takes a typed object or explicit arguments, **including `userId`**, and enforces data isolation itself (see `clerk-auth-data-isolation.mdc`): decks filtered by `eq(decksTable.userId, userId)`, cards verified through their parent deck, ownership in the same `where` for update/delete.
+  - Helpers use only Drizzle (see `drizzle-database.mdc`), reuse the shared `db` client, and use the inferred types (`Deck`, `NewDeck`, `Card`, `NewCard`).
+  - Helpers contain **no** auth lookup (`auth()`), **no** zod validation, **no** `revalidatePath`, and **no** redirects. They are pure data access. The caller supplies an already-authenticated, already-validated `userId` and input.
+- **Reads:** retrieve data only in **Server Components** (async components) by calling a query helper from `src/db/queries/`. Never fetch data in Client Components (`useEffect`, SWR, React Query, `fetch` to your own API) or Route Handlers just to read data.
+- **Writes:** every insert, update, and delete **must** be a **Server Action** (`"use server"`) that calls a mutation helper from `src/db/queries/`. No mutations in Server Components, Route Handlers, or Client Components.
+- **Location of actions:** put actions in a colocated `actions.ts` next to the route that uses them (e.g. `src/app/dashboard/actions.ts`) with `"use server"` at the top of the file. Query helpers do **not** go in `actions.ts`; they live only in `src/db/queries/`.
+- **Validation:** all validation uses **zod**. Never hand-roll validation. Validation happens in the Server Action (or Route Handler), not inside query helpers.
 - **Action input:** every Server Action takes a **typed object**, validated with a zod schema via `.parse()` / `.safeParse()` before anything else. Derive the TS type from the schema with `z.infer`.
 - **Never use `FormData`** as a parameter type. Client components call the action with a plain typed object.
-- Auth and ownership rules still apply (see `clerk-auth-data-isolation.mdc`): get `userId` from `auth()`, never from the input.
+- Auth and ownership rules still apply (see `clerk-auth-data-isolation.mdc`): get `userId` from `auth()` in the Server Component / Server Action, never from the input, and pass it to the query helper.
 
 ## Example
+
+```ts
+// src/db/queries/decks.ts
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db";
+import { decksTable, type Deck } from "@/db/schema";
+
+// ✅ GOOD: pure data access, scoped by userId, Drizzle only
+export async function getDecksForUser(userId: string): Promise<Deck[]> {
+ return db.select().from(decksTable).where(eq(decksTable.userId, userId));
+}
+
+export async function renameDeck(params: {
+ userId: string;
+ deckId: number;
+ name: string;
+}) {
+ const { userId, deckId, name } = params;
+ return db
+ .update(decksTable)
+ .set({ name })
+ .where(and(eq(decksTable.id, deckId), eq(decksTable.userId, userId)))
+ .returning();
+}
+```
 
 ```ts
 // src/app/dashboard/actions.ts
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { db } from "@/db";
-import { decksTable } from "@/db/schema";
+import { renameDeck as renameDeckQuery } from "@/db/queries/decks";
 
 const renameDeckSchema = z.object({
  deckId: z.number().int().positive(),
@@ -35,32 +64,42 @@ const renameDeckSchema = z.object({
 
 type RenameDeckInput = z.infer<typeof renameDeckSchema>;
 
-// ✅ GOOD: typed object, validated with zod, userId from auth()
+// ✅ GOOD: typed object, validated with zod, userId from auth(), DB work delegated to a query helper
 export async function renameDeck(input: RenameDeckInput) {
  const { userId } = await auth();
  if (!userId) throw new Error("Unauthorized");
 
  const { deckId, name } = renameDeckSchema.parse(input);
 
- await db
- .update(decksTable)
- .set({ name })
- .where(and(eq(decksTable.id, deckId), eq(decksTable.userId, userId)));
+ await renameDeckQuery({ userId, deckId, name });
 
  revalidatePath("/dashboard");
 }
 
-// ❌ BAD: FormData as the type, no zod validation
+// ❌ BAD: FormData as the type, no zod validation, direct db call in the action
 export async function renameDeckBad(formData: FormData) {
  await db.update(decksTable).set({ name: formData.get("name") as string });
 }
 ```
 
 ```tsx
-// ✅ GOOD: read in a Server Component
+// src/app/dashboard/page.tsx
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getDecksForUser } from "@/db/queries/decks";
+
+// ✅ GOOD: read in a Server Component via a query helper
 export default async function DashboardPage() {
  const { userId } = await auth();
- if (!userId) redirect("/sign-in");
+ if (!userId) redirect("/");
+ const decks = await getDecksForUser(userId);
+ return <DeckList decks={decks} />;
+}
+
+// ❌ BAD: calling Drizzle directly in the component instead of a query helper
+export async function DashboardPageBad() {
+ const { userId } = await auth();
+ if (!userId) redirect("/");
  const decks = await db.select().from(decksTable).where(eq(decksTable.userId, userId));
  return <DeckList decks={decks} />;
 }

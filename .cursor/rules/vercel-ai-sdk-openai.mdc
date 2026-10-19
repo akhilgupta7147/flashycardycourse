@@ -1,0 +1,114 @@
+---
+description: AI features (e.g. AI flashcard generation) use the Vercel AI SDK (`ai` + `@ai-sdk/openai`) with generateText + Output.object to call OpenAI, run only in Server Actions, gated by the ai_flashcard_generation feature
+alwaysApply: true
+---
+# AI features (Vercel AI SDK + OpenAI)
+
+All AI features, starting with **AI flashcard generation**, use the **Vercel AI SDK** (`ai`) with the **OpenAI provider** (`@ai-sdk/openai`). Never call OpenAI through the `openai` npm package, raw `fetch`, or any other LLM library.
+
+The AI SDK changes between versions. Check the installed version and the docs in `node_modules/ai/docs/` before writing AI code, and follow the pattern below.
+
+## Rules
+
+- **Install:** `npm install ai @ai-sdk/openai` (zod is already installed and is used for schemas).
+- **Server only:** call the AI SDK only in Server Actions (`actions.ts`, `"use server"`) or other server code. Never import `ai` / `@ai-sdk/openai` in a Client Component, and never expose the API key to the client.
+- **API key:** read from `OPENAI_API_KEY` in `.env.local` (the `@ai-sdk/openai` provider reads it automatically). Never hardcode it, prefix it with `NEXT_PUBLIC_`, or log it.
+- **Structured output:** generate structured data with `generateText` and `output: Output.object({ schema })` (both from `ai`), using a zod schema, and read the result from `output`. Do **not** use `generateObject`, and never parse free-form model text by hand.
+- **Card shape:** flashcard generation returns an **array of cards**, each with a `front` and a `back` string. The number of cards (`count`) comes from validated user input and is stated in the prompt; always `.slice(0, count)` the result as a safeguard.
+- **Model:** reference the model in one place (a constant in `src/lib/ai.ts`) so it can be changed centrally.
+- **Same rules as any Server Action** (see `data-fetching-and-mutations.mdc`, `clerk-auth-data-isolation.mdc`, `clerk-billing-access-control.mdc`):
+  - Take a typed object validated with zod (never `FormData`); get `userId` from `auth()`.
+  - Require `has({ feature: "ai_flashcard_generation" })` before calling the model; throw if missing.
+  - Verify the user owns the target deck before saving generated cards.
+  - Save generated cards only through helpers in `src/db/queries/cards.ts`; no `db` calls in the action.
+- **Bound the input:** limit the topic/prompt length and cap `count` with zod (e.g. `.min(1).max(20)`).
+- **Errors:** wrap the model call in `try/catch`, return a friendly error to the UI, and never leak raw provider errors or keys.
+- **UI:** any AI trigger, loading, and error UI uses shadcn components only (see `shadcn-ui.mdc`), wrapped in `<Show when={{ feature: "ai_flashcard_generation" }}>` with an upgrade fallback linking to `/pricing`.
+
+## Reference: generating x cards with front and back
+
+```ts
+import { generateText, Output } from "ai";
+import { openai } from "@ai-sdk/openai";
+import { z } from "zod";
+
+const count = 10; // x: number of cards to generate
+
+const { output } = await generateText({
+ model: openai("gpt-6-astra"),
+ output: Output.object({
+ schema: z.object({
+ cards: z.array(
+ z.object({
+ front: z.string(),
+ back: z.string(),
+ }),
+ ),
+ }),
+ }),
+ prompt: `Generate ${count} flashcards about photosynthesis.`,
+});
+
+// output.cards -> { front: string; back: string }[]
+```
+
+## Example: full Server Action
+
+```ts
+// src/lib/ai.ts
+import { openai } from "@ai-sdk/openai";
+
+export const flashcardModel = openai("gpt-6-astra");
+```
+
+```ts
+// src/app/decks/[deckId]/actions.ts
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { generateText, Output } from "ai";
+import { z } from "zod";
+import { flashcardModel } from "@/lib/ai";
+import { getDeckById } from "@/db/queries/decks";
+import { createCards } from "@/db/queries/cards";
+
+const generateCardsSchema = z.object({
+ deckId: z.number().int().positive(),
+ topic: z.string().trim().min(1).max(500),
+ count: z.number().int().min(1).max(20),
+});
+type GenerateCardsInput = z.infer<typeof generateCardsSchema>;
+
+// ✅ GOOD: auth, feature gate, zod input, ownership check, structured output, query helper
+export async function generateCardsAction(input: GenerateCardsInput) {
+ const { userId, has } = await auth();
+ if (!userId) throw new Error("Unauthorized");
+ if (!has({ feature: "ai_flashcard_generation" })) {
+ throw new Error("Upgrade to Pro to generate cards with AI.");
+ }
+
+ const { deckId, topic, count } = generateCardsSchema.parse(input);
+ const deck = await getDeckById({ userId, deckId });
+ if (!deck) throw new Error("Not found");
+
+ const { output } = await generateText({
+ model: flashcardModel,
+ output: Output.object({
+ schema: z.object({
+ cards: z.array(z.object({ front: z.string(), back: z.string() })),
+ }),
+ }),
+ prompt: `Generate ${count} flashcards about: ${topic}`,
+ });
+
+ await createCards({ userId, deckId, cards: output.cards.slice(0, count) });
+}
+
+// ❌ BAD: no feature check, client-exposed key, unvalidated input, hand-parsed output
+import OpenAI from "openai";
+export async function generateBad(topic: string) {
+ const client = new OpenAI({ apiKey: process.env.NEXT_PUBLIC_OPENAI_KEY });
+ const res = await client.chat.completions.create({ /* ... */ });
+ return JSON.parse(res.choices[0].message.content!);
+}
+```

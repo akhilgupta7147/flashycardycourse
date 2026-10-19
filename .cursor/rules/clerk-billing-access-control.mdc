@@ -1,0 +1,110 @@
+---
+description: Subscriptions, payments and plan/feature gating use Clerk Billing (B2C). Plans - free_user, pro. Features - 3_deck_limit, unlimited_decks, ai_flashcard_generation
+alwaysApply: true
+---
+# Billing & plan/feature gating (Clerk Billing)
+
+All subscriptions and payments are handled by **Clerk Billing for B2C SaaS** (`@clerk/nextjs`), billing **individual users** (not organizations). Never integrate Stripe directly, build a custom checkout, or store plan/subscription state in our own database. Plans and pricing are managed in the Clerk Dashboard (Billing → Subscription plans), not in code.
+
+## Plans and features
+
+| Plan        | Type |
+| ----------- | ---- |
+| `free_user` | Plan |
+| `pro`       | Plan |
+
+| Feature                   | Gates                                   |
+| ------------------------- | --------------------------------------- |
+| `3_deck_limit`            | Cap of 3 decks per user                 |
+| `unlimited_decks`         | No cap on number of decks               |
+| `ai_flashcard_generation` | AI flashcard generation                 |
+
+Use these exact slugs (snake_case, as shown). Do not invent new plan/feature names in code; they must exist in the Clerk Dashboard first.
+
+## Rules
+
+- **Gate on Features, not Plans.** Prefer `has({ feature: "..." })` / `<Show when={{ feature: "..." }}>`. Only use `{ plan: "pro" }` when the check is truly about the plan itself (e.g. showing "Current plan" or an upgrade prompt).
+- **Enforce on the server; UI gating is cosmetic.** Hiding a button is not security. Every Server Action / Server Component that performs a gated operation **must** check access with `has()` from `await auth()` and refuse (throw / return an error) if the user lacks it. Never trust a plan/feature flag sent from the client.
+- **Server-side check:** `const { userId, has } = await auth();` (from `@clerk/nextjs/server`). Do the `has()` check in the Server Action or page, **not** in `src/db/queries/` helpers (helpers contain no auth lookups; see `data-fetching-and-mutations.mdc`).
+- **Client/UI gating:** use Clerk's `<Show when={...} fallback={...}>` (from `@clerk/nextjs`) to hide or replace gated UI. Pass the fallback as an upgrade prompt, built from shadcn components (`Alert`, `Button`, `Card`) that link to the pricing page.
+- **Deck limit:** creating a deck is allowed if `has({ feature: "unlimited_decks" })`; otherwise (`3_deck_limit`) count the user's existing decks via a query helper in `src/db/queries/decks.ts` and reject when the count is already 3. `unlimited_decks` takes precedence.
+- **AI generation:** any AI flashcard generation action must require `has({ feature: "ai_flashcard_generation" })`.
+- **Pricing page:** upgrades happen on a dedicated `src/app/pricing/page.tsx` that renders Clerk's `<PricingTable />`. Do not build custom pricing cards. Link to `/pricing` from every upgrade prompt. Use Tailwind utilities (`mx-auto max-w-3xl px-4`), not inline `style`. `/pricing` should be public or protected consistent with `src/proxy.ts`; if protected, add it to `isProtectedRoute`.
+- Billing does not change auth/data isolation: `userId` still comes from `auth()` and every query is still scoped by it (see `clerk-auth-data-isolation.mdc`).
+
+## Examples
+
+```tsx
+// ✅ GOOD: server-side enforcement in a Server Action (src/app/dashboard/actions.ts)
+"use server";
+import { auth } from "@clerk/nextjs/server";
+import { countDecksForUser, createDeck } from "@/db/queries/decks";
+
+export async function createDeckAction(input: CreateDeckInput) {
+  const { userId, has } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const { name } = createDeckSchema.parse(input);
+
+  if (!has({ feature: "unlimited_decks" })) {
+    const count = await countDecksForUser(userId);
+    if (count >= 3) throw new Error("Deck limit reached. Upgrade to Pro.");
+  }
+
+  await createDeck({ userId, name });
+}
+```
+
+```tsx
+// ✅ GOOD: Server Component gating with has()
+import { auth } from "@clerk/nextjs/server";
+
+const { has } = await auth();
+const canUseAi = has({ feature: "ai_flashcard_generation" });
+```
+
+```tsx
+// ✅ GOOD: UI gating with <Show> and a shadcn upgrade fallback
+import Link from "next/link";
+import { Show } from "@clerk/nextjs";
+import { Button } from "@/components/ui/button";
+
+<Show
+  when={{ feature: "ai_flashcard_generation" }}
+  fallback={
+    <Button asChild variant="outline">
+      <Link href="/pricing">Upgrade to Pro for AI generation</Link>
+    </Button>
+  }
+>
+  <GenerateCardsButton />
+</Show>
+```
+
+```tsx
+// ✅ GOOD: pricing page (src/app/pricing/page.tsx)
+import { PricingTable } from "@clerk/nextjs";
+
+export default function PricingPage() {
+  return (
+    <div className="mx-auto max-w-3xl px-4">
+      <PricingTable />
+    </div>
+  );
+}
+```
+
+```tsx
+// ❌ BAD: only hiding the UI, the action itself is unprotected
+export async function generateCardsAction(input: GenerateInput) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  // no has({ feature: "ai_flashcard_generation" }) check
+}
+
+// ❌ BAD: trusting a client-supplied flag / checking plan name in the DB
+if (input.isPro) { /* ... */ }
+
+// ❌ BAD: hand-rolled pricing UI or direct Stripe usage
+<div className="rounded border p-4">Pro - $9/mo</div>
+```
