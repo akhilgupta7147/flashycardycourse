@@ -6,7 +6,7 @@ Your personal flashcard platform: build decks, flip cards and remember more.
 
 > A learning project built by Akhil Gupta while learning vibe coding with [Cursor](https://cursor.com).
 
-<!-- Add screenshots here, e.g. ![Dashboard](docs/dashboard.png) -->
+![FlashyCardy homepage](docs/flashycardy.png)
 
 ## Features
 
