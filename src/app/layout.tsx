@@ -1,5 +1,5 @@
 import { ClerkProvider, Show, UserButton } from "@clerk/nextjs";
-import { dark, shadcn } from "@clerk/themes";
+import { shadcn } from "@clerk/themes";
 import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import { AuthNavButtons } from "@/components/auth-nav-buttons";
@@ -26,11 +26,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${poppins.className} ${poppins.variable} dark h-full antialiased`}
-      style={{ colorScheme: "dark" }}
+      className={`${poppins.className} ${poppins.variable} h-full bg-background antialiased`}
+      style={{ colorScheme: "light" }}
     >
-      <body className="min-h-full flex flex-col">
-        <ClerkProvider appearance={{ theme: [shadcn, dark] }}>
+      <body className="flex min-h-full flex-col bg-background text-foreground">
+        <ClerkProvider appearance={{ theme: shadcn }}>
           <header className="flex items-center justify-end gap-2 border-b border-border bg-background px-4 py-3">
             <Show when="signed-out">
               <AuthNavButtons />

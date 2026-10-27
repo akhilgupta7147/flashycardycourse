@@ -16,7 +16,7 @@ export default async function Home() {
   if (userId) redirect("/dashboard");
 
   return (
-    <main className="flex flex-1 flex-col items-center bg-gradient-to-b from-primary/10 via-background to-background px-4 py-10 text-center sm:py-16 text-foreground">
+    <main className="flex flex-1 flex-col items-center bg-background px-4 py-10 text-center sm:py-16 text-foreground">
       <div className="flex w-full max-w-3xl flex-col items-center gap-10">
         <Card className="w-full max-w-xl">
           <CardHeader className="items-center">
