@@ -4,6 +4,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import {
+  applyCardReview,
   getCardsForDeck,
   resetDeckProgress as resetDeckProgressQuery,
   setCardLearned as setCardLearnedQuery,
@@ -27,6 +28,47 @@ const setCardLearnedSchema = z.object({
 const resetProgressSchema = z.object({
   deckId: z.number().int().positive(),
 });
+
+const reviewCardSchema = z.object({
+  deckId: z.number().int().positive(),
+  cardId: z.number().int().positive(),
+  quality: z.number().int().min(0).max(5),
+  mode: z.enum(["flip", "quiz", "type"]),
+});
+
+type ReviewCardInput = z.infer<typeof reviewCardSchema>;
+
+export type ReviewCardResult =
+  | {
+      success: true;
+      learned: boolean;
+      intervalDays: number;
+      nextReviewAt: string | null;
+    }
+  | { success: false; error: string };
+
+export async function reviewCard(
+  input: ReviewCardInput,
+): Promise<ReviewCardResult> {
+  const { userId } = await auth();
+  if (!userId) return { success: false, error: "Unauthorized" };
+
+  const parsed = reviewCardSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: "Invalid input" };
+
+  const card = await applyCardReview({ userId, ...parsed.data });
+  if (!card) return { success: false, error: "Card not found" };
+
+  revalidatePath(`/decks/${card.deckId}`);
+  revalidatePath(`/decks/${card.deckId}/study`);
+  revalidatePath("/dashboard");
+  return {
+    success: true,
+    learned: card.learned,
+    intervalDays: card.intervalDays,
+    nextReviewAt: card.nextReviewAt?.toISOString() ?? null,
+  };
+}
 
 type SetCardLearnedInput = z.infer<typeof setCardLearnedSchema>;
 type ResetProgressInput = z.infer<typeof resetProgressSchema>;

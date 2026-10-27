@@ -6,76 +6,102 @@ import { useState, useTransition } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { AiGenerationStatus } from "@/lib/ai";
-import { MIN_DECK_TEXT_LENGTH } from "@/lib/deck-schema";
 import { generateCardsAction } from "./actions";
 
 /**
- * Shown to users WITH the `ai_flashcard_generation` feature. The button is
- * disabled (with an explanatory tooltip) while generating, when the deck has no
- * valid title/description, or when the title/description haven't changed since the last
- * generation. Regenerating replaces the previously AI-generated cards.
+ * Shown to users WITH the `ai_flashcard_generation` feature. Opens a prompt
+ * where they can paste notes. Generating replaces the deck's current cards.
  */
-export function GenerateCardsButton({
-  deckId,
-  status,
-}: {
-  deckId: number;
-  status: AiGenerationStatus;
-}) {
+export function GenerateCardsButton({ deckId }: { deckId: number }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const disabledReason = isPending
-    ? "Generating cards. This can take a few seconds."
-    : status === "incomplete"
-      ? `Give this deck a title and a description of at least ${MIN_DECK_TEXT_LENGTH} characters each. AI uses them to generate cards.`
-      : status === "unchanged"
-        ? "Cards were already generated from this title and description. Edit the title or description to generate new ones."
-        : null;
+  function handleOpenChange(nextOpen: boolean) {
+    if (isPending) return;
+    setOpen(nextOpen);
+    if (nextOpen) setError(null);
+  }
 
-  function handleClick() {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await generateCardsAction({ deckId });
-      if (!result.success) setError(result.error);
+      const result = await generateCardsAction({
+        deckId,
+        notes: notes.trim() || undefined,
+      });
+      if (!result.success) {
+        setError(result.error);
+        return;
+      }
+      setNotes("");
+      setOpen(false);
+      router.refresh();
     });
   }
 
-  const button = (
-    <Button
-      variant="outline"
-      size="default"
-      onClick={handleClick}
-      disabled={disabledReason !== null}
-    >
-      <SparklesIcon data-icon="inline-start" />
-      {isPending ? "Generating..." : "Generate cards with AI"}
-    </Button>
-  );
-
   return (
     <div className="flex flex-col items-start gap-2 sm:items-end">
-      {disabledReason ? (
-        <Tooltip>
-          {/* Disabled buttons don't receive hover, so the span is the trigger. */}
-          <TooltipTrigger render={<span tabIndex={0} className="inline-flex" />}>
-            {button}
-          </TooltipTrigger>
-          <TooltipContent>{disabledReason}</TooltipContent>
-        </Tooltip>
-      ) : (
-        button
-      )}
-      {error ? (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
+      <Button
+        variant="outline"
+        onClick={() => handleOpenChange(true)}
+        disabled={isPending}
+      >
+        <SparklesIcon data-icon="inline-start" />
+        {isPending ? "Generating..." : "Generate cards with AI"}
+      </Button>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Generate cards with AI</DialogTitle>
+            <DialogDescription>
+              Paste notes, or text copied from a PDF or a webpage. This replaces
+              the cards already in the deck. FlashyCardy does not open links or
+              read uploaded files.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="ai-notes">Notes</Label>
+              <Textarea
+                id="ai-notes"
+                value={notes}
+                onChange={(event) => setNotes(event.target.value)}
+                placeholder="Paste the material you want turned into flashcards"
+                maxLength={8000}
+                disabled={isPending}
+              />
+            </div>
+            {error ? (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            ) : null}
+            <DialogFooter>
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Generating..." : "Generate cards"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

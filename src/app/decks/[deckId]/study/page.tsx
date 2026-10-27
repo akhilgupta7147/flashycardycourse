@@ -66,6 +66,7 @@ export default async function StudyPage({
             front: card.front,
             back: card.back,
             learned: card.learned,
+            nextReviewAt: card.nextReviewAt?.toISOString() ?? null,
           }))}
         />
       )}

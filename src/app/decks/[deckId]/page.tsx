@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/progress";
 import { getCardsForDeck } from "@/db/queries/cards";
 import { getDeckById } from "@/db/queries/decks";
-import { getAiGenerationStatus } from "@/lib/ai";
 import { MAX_CARDS_PER_DECK } from "@/lib/deck-limits";
 import { CardDialog } from "./card-dialog";
 import { DeleteCardDialog } from "./delete-card-dialog";
@@ -133,10 +132,7 @@ export default async function DeckPage({
               when={{ feature: "ai_flashcard_generation" }}
               fallback={<UpgradeGenerateCardsButton />}
             >
-              <GenerateCardsButton
-                deckId={deck.id}
-                status={getAiGenerationStatus(deck)}
-              />
+              <GenerateCardsButton deckId={deck.id} />
             </Show>
             <CardDialog
               mode="create"

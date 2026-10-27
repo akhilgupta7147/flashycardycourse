@@ -1,6 +1,15 @@
 import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { cardsTable, decksTable, type Card } from "@/db/schema";
+import { cardsTable, decksTable, studyReviewsTable, type Card } from "@/db/schema";
+import { applySm2, DEFAULT_EASE_FACTOR } from "@/lib/sm2";
+
+const freshSchedule = {
+  learned: false,
+  easeFactor: DEFAULT_EASE_FACTOR,
+  intervalDays: 0,
+  repetitions: 0,
+  nextReviewAt: null,
+};
 
 /**
  * IDs of the decks owned by the given user. Used as a subquery so ownership of
@@ -122,7 +131,7 @@ export async function replaceDeckCards(params: {
 
 /**
  * Updates the front/back of a card, only if its parent deck is owned by the
- * given Clerk user. Editing the content resets the card's learned state.
+ * given Clerk user. Editing the content resets learned state and SM-2 scheduling.
  * Returns the updated card, or `undefined` when missing or not owned.
  */
 export async function updateCard(params: {
@@ -135,7 +144,7 @@ export async function updateCard(params: {
   const { userId, deckId, cardId, front, back } = params;
   const [card] = await db
     .update(cardsTable)
-    .set({ front, back, learned: false })
+    .set({ front, back, ...freshSchedule })
     .where(
       and(
         eq(cardsTable.id, cardId),
@@ -207,11 +216,73 @@ export async function resetDeckProgress(params: {
   const { userId, deckId } = params;
   await db
     .update(cardsTable)
-    .set({ learned: false })
+    .set(freshSchedule)
     .where(
       and(
         eq(cardsTable.deckId, deckId),
         inArray(cardsTable.deckId, ownedDeckIds(userId)),
       ),
     );
+}
+
+export type ReviewMode = "flip" | "quiz" | "type";
+
+/**
+ * Applies an SM-2 review to one card and records it, only if the parent deck
+ * is owned by the given Clerk user. Returns the updated card, or `undefined`.
+ */
+export async function applyCardReview(params: {
+  userId: string;
+  deckId: number;
+  cardId: number;
+  quality: number;
+  mode: ReviewMode;
+}): Promise<Card | undefined> {
+  const { userId, deckId, cardId, quality, mode } = params;
+  const [existing] = await db
+    .select({
+      easeFactor: cardsTable.easeFactor,
+      intervalDays: cardsTable.intervalDays,
+      repetitions: cardsTable.repetitions,
+    })
+    .from(cardsTable)
+    .innerJoin(decksTable, eq(cardsTable.deckId, decksTable.id))
+    .where(
+      and(
+        eq(cardsTable.id, cardId),
+        eq(cardsTable.deckId, deckId),
+        eq(decksTable.userId, userId),
+      ),
+    )
+    .limit(1);
+  if (!existing) return undefined;
+
+  const next = applySm2(existing, quality);
+  const [card] = await db
+    .update(cardsTable)
+    .set({
+      easeFactor: next.easeFactor,
+      intervalDays: next.intervalDays,
+      repetitions: next.repetitions,
+      nextReviewAt: next.nextReviewAt,
+      learned: next.learned,
+    })
+    .where(
+      and(
+        eq(cardsTable.id, cardId),
+        eq(cardsTable.deckId, deckId),
+        inArray(cardsTable.deckId, ownedDeckIds(userId)),
+      ),
+    )
+    .returning();
+  if (!card) return undefined;
+
+  await db.insert(studyReviewsTable).values({
+    userId,
+    deckId,
+    cardId,
+    mode,
+    quality,
+  });
+  return card;
 }

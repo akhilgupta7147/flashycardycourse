@@ -1,12 +1,15 @@
 "use client";
 
+import { SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { BookOpen, Check, Crown, Layers, Minus, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -30,8 +33,9 @@ import {
 
 const comparison = [
   { feature: "Create decks", free: "Up to 3 decks", pro: "Unlimited decks" },
-  { feature: "Add flashcards", free: true, pro: true },
-  { feature: "Study sessions", free: true, pro: true },
+  { feature: "Flip, quiz, and type", free: true, pro: true },
+  { feature: "Spaced repetition", free: true, pro: true },
+  { feature: "Streaks and mastery", free: true, pro: true },
   { feature: "AI flashcard generation", free: false, pro: true },
 ];
 
@@ -47,23 +51,20 @@ function Cell({ value }: { value: string | boolean }) {
   );
 }
 
-function ComparisonDialog({
-  children,
-  trigger,
-}: {
-  children: React.ReactNode;
-  trigger: React.ReactElement;
-}) {
+function ComparePlansButton() {
   return (
     <Dialog>
-      <DialogTrigger nativeButton={false} render={trigger}>
-        {children}
+      <DialogTrigger
+        render={<Button variant="outline" className="w-full" />}
+      >
+        Compare plans
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Free vs Pro</DialogTitle>
           <DialogDescription>
-            See what you get with each plan.
+            See what you get with each plan. Monthly and yearly prices are on
+            the pricing page.
           </DialogDescription>
         </DialogHeader>
         <Table>
@@ -98,14 +99,10 @@ function ComparisonDialog({
   );
 }
 
-const clickableCard = (
-  <Card className="cursor-pointer transition-colors hover:bg-muted/50" />
-);
-
 export function PlanCards() {
   return (
-    <section className="grid w-full gap-4 text-left sm:grid-cols-2">
-      <ComparisonDialog trigger={clickableCard}>
+    <section id="pricing" className="grid w-full scroll-mt-24 gap-4 text-left sm:grid-cols-2">
+      <Card>
         <CardHeader>
           <Badge variant="outline">
             <BookOpen />
@@ -115,28 +112,54 @@ export function PlanCards() {
             <Layers className="size-5 text-primary" />
             Up to 3 decks
           </CardTitle>
-          <CardDescription>
-            Log in to create up to 3 decks for free and start learning right
-            away. Click to compare plans.
-          </CardDescription>
+          <CardDescription>$0 per month, forever.</CardDescription>
         </CardHeader>
-      </ComparisonDialog>
-      <ComparisonDialog trigger={clickableCard}>
+        <CardContent>
+          <CardDescription>
+            Create up to 3 decks and study with flip cards, quizzes, typed
+            answers, and spaced repetition.
+          </CardDescription>
+        </CardContent>
+        <CardFooter className="flex-col gap-2">
+          <SignUpButton mode="modal">
+            <Button className="w-full">Get Started Free</Button>
+          </SignUpButton>
+          <ComparePlansButton />
+        </CardFooter>
+      </Card>
+
+      <Card className="ring-2 ring-primary">
         <CardHeader>
-          <Badge>
-            <Crown />
-            Pro
-          </Badge>
+          <div className="flex flex-wrap gap-2">
+            <Badge>Most Popular</Badge>
+            <Badge variant="outline">
+              <Crown />
+              Pro
+            </Badge>
+          </div>
           <CardTitle className="mt-2 flex items-center gap-2">
             <Sparkles className="size-5 text-primary" />
             Unlimited decks
           </CardTitle>
-          <CardDescription>
-            Get on a Pro plan to create as many decks as you want, plus
-            AI-generated flashcards. Click to compare plans.
-          </CardDescription>
+          <CardDescription>Monthly or yearly billing.</CardDescription>
         </CardHeader>
-      </ComparisonDialog>
+        <CardContent>
+          <CardDescription>
+            Everything in Free, with no deck cap and AI flashcards generated
+            from notes you paste. Current prices are on the pricing page.
+          </CardDescription>
+        </CardContent>
+        <CardFooter className="flex-col gap-2">
+          <Button
+            className="w-full"
+            nativeButton={false}
+            render={<Link href="/pricing" />}
+          >
+            Upgrade to Pro
+          </Button>
+          <ComparePlansButton />
+        </CardFooter>
+      </Card>
     </section>
   );
 }

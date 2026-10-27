@@ -7,7 +7,7 @@ export default function PricingPage() {
         Pricing
       </h1>
       <p className="mt-2 mb-8 text-center text-muted-foreground">
-        Choose the plan that fits how you study.
+        Choose a monthly or yearly plan. Prices come from billing.
       </p>
       <PricingTable />
     </main>

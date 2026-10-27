@@ -17,6 +17,7 @@ import {
   ProgressValue,
 } from "@/components/ui/progress";
 import { getDecksWithProgressForUser } from "@/db/queries/decks";
+import { getStudyStatsForUser } from "@/db/queries/reviews";
 import { FREE_DECK_LIMIT } from "@/lib/billing";
 import { CreateDeckDialog } from "./create-deck-dialog";
 
@@ -26,7 +27,10 @@ export default async function DashboardPage() {
 
   const user = await currentUser();
 
-  const decks = await getDecksWithProgressForUser(userId);
+  const [decks, stats] = await Promise.all([
+    getDecksWithProgressForUser(userId),
+    getStudyStatsForUser(userId),
+  ]);
 
   // Cosmetic gating only: createDeck re-checks this on the server.
   const hasUnlimitedDecks = has({ feature: "unlimited_decks" });
@@ -41,6 +45,40 @@ export default async function DashboardPage() {
             Welcome back{user?.firstName ? `, ${user.firstName}` : ""}!
           </CardDescription>
         </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader>
+              <CardDescription>Study streak</CardDescription>
+              <CardTitle>
+                {stats.streakDays} {stats.streakDays === 1 ? "day" : "days"}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Cards reviewed</CardDescription>
+              <CardTitle>{stats.reviewedToday} today</CardTitle>
+              <CardDescription>{stats.reviewedTotal} all time</CardDescription>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Mastery</CardDescription>
+              <CardTitle>{stats.masteryPercent}%</CardTitle>
+              <CardDescription>
+                {stats.learnedCards} of {stats.totalCards} learned
+              </CardDescription>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardDescription>Due now</CardDescription>
+              <CardTitle>
+                {stats.dueCards} {stats.dueCards === 1 ? "card" : "cards"}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+        </CardContent>
       </Card>
 
       <Card>

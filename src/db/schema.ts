@@ -52,11 +52,39 @@ export const cardsTable = pgTable(
       .references(() => decksTable.id, { onDelete: "cascade" }),
     front: text().notNull(),
     back: text().notNull(),
-    // Study progress: true once the user has marked the card as learned.
+    // Study progress: true once the latest review was successful.
     learned: boolean().notNull().default(false),
+    // SM-2 scheduling. Ease is stored in hundredths (250 = 2.50).
+    easeFactor: integer().notNull().default(250),
+    intervalDays: integer().notNull().default(0),
+    repetitions: integer().notNull().default(0),
+    nextReviewAt: timestamp({ withTimezone: true }),
     ...timestamps,
   },
   (table) => [index("cards_deck_id_idx").on(table.deckId)],
+);
+
+/**
+ * One row each time a card is reviewed. Used for streaks and review counts.
+ * `cardId` is nullable so a deleted card does not erase the review history.
+ */
+export const studyReviewsTable = pgTable(
+  "study_reviews",
+  {
+    id: integer().primaryKey().generatedAlwaysAsIdentity(),
+    userId: varchar({ length: 255 }).notNull(),
+    deckId: integer()
+      .notNull()
+      .references(() => decksTable.id, { onDelete: "cascade" }),
+    cardId: integer().references(() => cardsTable.id, { onDelete: "set null" }),
+    mode: varchar({ length: 16 }).notNull(),
+    quality: integer().notNull(),
+    reviewedAt: timestamp({ withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("study_reviews_user_id_idx").on(table.userId),
+    index("study_reviews_reviewed_at_idx").on(table.reviewedAt),
+  ],
 );
 
 export type Deck = typeof decksTable.$inferSelect;
