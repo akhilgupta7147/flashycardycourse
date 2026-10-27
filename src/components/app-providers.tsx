@@ -1,38 +1,20 @@
 "use client";
 
 import { ClerkProvider } from "@clerk/nextjs";
-import { dark as darkTheme, shadcn } from "@clerk/themes";
-import { useEffect, useState } from "react";
+import { shadcn } from "@clerk/themes";
 
-export function AppProviders({
-  initialTheme,
-  children,
-}: {
-  initialTheme: "light" | "dark";
-  children: React.ReactNode;
-}) {
-  const [theme, setTheme] = useState(initialTheme);
+/**
+ * Clerk reads the same CSS variables as the rest of the app, so sign-in,
+ * sign-up, and pricing follow the light/dark class on <html>. The backdrop
+ * stays translucent; Clerk's default is solid black.
+ */
+const authAppearance = {
+  theme: shadcn,
+  variables: {
+    colorModalBackdrop: "rgba(0, 0, 0, 0.45)",
+  },
+};
 
-  useEffect(() => {
-    function sync() {
-      setTheme(
-        document.documentElement.classList.contains("dark") ? "dark" : "light",
-      );
-    }
-    window.addEventListener("flashycardy-theme", sync);
-    return () => window.removeEventListener("flashycardy-theme", sync);
-  }, []);
-
-  return (
-    <ClerkProvider
-      appearance={{
-        theme: theme === "dark" ? [shadcn, darkTheme] : shadcn,
-        variables: {
-          colorPrimary: theme === "dark" ? "#34d399" : "#059669",
-        },
-      }}
-    >
-      {children}
-    </ClerkProvider>
-  );
+export function AppProviders({ children }: { children: React.ReactNode }) {
+  return <ClerkProvider appearance={authAppearance}>{children}</ClerkProvider>;
 }

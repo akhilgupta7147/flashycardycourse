@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       style={{ colorScheme: theme }}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <AppProviders initialTheme={theme}>
+        <AppProviders>
           <SiteHeader initialTheme={theme} />
           {children}
         </AppProviders>
